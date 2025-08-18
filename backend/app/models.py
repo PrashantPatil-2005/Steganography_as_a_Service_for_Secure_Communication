@@ -1,1 +1,1 @@
-# Database models (User, Message Metadata) with SQLAlchemy
+# Database models (User, etc.)

@@ -1,1 +1,1 @@
-// Main application component with routing
+// Main React App component
