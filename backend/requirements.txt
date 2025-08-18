@@ -1,1 +1,6 @@
 # Python package dependencies (Flask, Pillow, etc.)
+Flask
+Flask-SQLAlchemy
+psycopg2-binary
+python-dotenv
+Werkzeug
