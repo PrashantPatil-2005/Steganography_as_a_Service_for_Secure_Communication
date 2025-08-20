@@ -1,1 +1,46 @@
 # Specifies files to be ignored by Git
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+instance/
+.env
+.venv/
+venv/
+env/
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+coverage/
+
+# Flask-Migrate
+migrations/versions/
+
+# Node / React
+node_modules/
+build/
+dist/
+.npm/
+.yarn/
+.cache/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Testing / Reports
+*.coverage
+htmlcov/
+
+# Misc
+*.bak
+*.tmp
