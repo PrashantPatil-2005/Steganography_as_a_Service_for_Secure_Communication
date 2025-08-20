@@ -16,6 +16,11 @@ env/
 .pytest_cache/
 coverage/
 
+# Environment files
+.env
+.env.local
+.env.*
+
 # Flask-Migrate
 migrations/versions/
 
