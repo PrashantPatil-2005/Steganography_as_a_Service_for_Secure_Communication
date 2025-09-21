@@ -1,6 +1,12 @@
 # Python package dependencies (Flask, Pillow, etc.)
 Flask
 Flask-SQLAlchemy
+Flask-JWT-Extended
+Flask-Cors
 psycopg2-binary
 python-dotenv
 Werkzeug
+Pillow
+stegano
+pycryptodome
+redis
