@@ -29,6 +29,27 @@ def allowed_file(filename):
     ext = filename.rsplit('.', 1)[1].lower()
     return ext in current_app.config['ALLOWED_EXTENSIONS']
 
+# Basic index and health endpoints for quick checks
+@api.route('/', methods=['GET'])
+def api_index():
+    return jsonify({
+        'name': 'Steganography-as-a-Service API',
+        'version': 1,
+        'endpoints': [
+            'POST /api/register',
+            'POST /api/login',
+            'POST /api/stego/embed',
+            'GET  /api/stego/download/<message_id>',
+            'POST /api/stego/extract',
+            'POST /api/stego/analysis',
+            'GET  /api/health'
+        ]
+    }), 200
+
+@api.route('/health', methods=['GET'])
+def api_health():
+    return jsonify({'status': 'ok'}), 200
+
 # Auth endpoints
 @api.route('/register', methods=['POST'])
 def register_user():
