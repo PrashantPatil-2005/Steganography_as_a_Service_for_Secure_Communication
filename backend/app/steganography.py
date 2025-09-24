@@ -2,6 +2,7 @@
 
 from PIL import Image
 import os
+import logging
 
 def _bytes_to_bits(data: bytes):
     for byte in data:
@@ -28,6 +29,7 @@ def embed_message_in_image(input_path: str, payload: bytes, output_path: str):
     """Embed payload bytes into an image using simple RGB LSB. Stores a 32-bit big-endian length prefix.
     Always writes a PNG to preserve exact pixel data.
     """
+    logging.debug(f'Opening input image for embedding: {input_path}')
     with Image.open(input_path) as img:
         if img.mode not in ('RGB', 'RGBA'):
             img = img.convert('RGB')
@@ -80,8 +82,10 @@ def embed_message_in_image(input_path: str, payload: bytes, output_path: str):
     # Ensure directory
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     out_img.save(output_path, format='PNG')
+    logging.debug(f'Embedded payload length={len(payload)} bytes into image. Output: {output_path}')
 
 def extract_message_from_image(input_path: str) -> bytes:
+    logging.debug(f'Opening image for extraction: {input_path}')
     with Image.open(input_path) as img:
         if img.mode not in ('RGB', 'RGBA'):
             img = img.convert('RGB')
@@ -104,4 +108,5 @@ def extract_message_from_image(input_path: str) -> bytes:
         raise ValueError('Not enough data for payload length')
     payload_bits = bits[32:32 + length * 8]
     payload = _bits_to_bytes(payload_bits)
+    logging.debug(f'Extracted payload length={len(payload)} bytes from image')
     return payload

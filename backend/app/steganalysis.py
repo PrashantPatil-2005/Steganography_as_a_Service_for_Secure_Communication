@@ -1,12 +1,14 @@
 # Logic for detecting hidden data
 
 from PIL import Image
+import logging
 
 def chi_square_lsb(image_path: str) -> float:
     """Return a simple chi-square score based on LSB distribution.
     Lower scores typically mean more uniform LSBs (potentially more embedding),
     but this is only a heuristic.
     """
+    logging.debug(f'Running chi-square LSB analysis on {image_path}')
     with Image.open(image_path) as img:
         if img.mode not in ('RGB', 'RGBA'):
             img = img.convert('RGB')
@@ -30,4 +32,5 @@ def chi_square_lsb(image_path: str) -> float:
     expected = total / 2.0
     # Chi-square for two categories: sum((obs-exp)^2/exp)
     chi2 = ((zeros - expected) ** 2) / expected + ((ones - expected) ** 2) / expected
+    logging.debug(f'Chi-square LSB result for {image_path}: {float(chi2)}')
     return float(chi2)

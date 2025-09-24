@@ -44,6 +44,7 @@ A React frontend can be added later to consume these APIs.
 2. Install backend dependencies
    ```powershell
    pip install -r backend/requirements.txt
+   # python -m pip install -r requirements.txt
    ```
 3. Create a `.env` file in `backend/` (optional; defaults provided)
    ```env
