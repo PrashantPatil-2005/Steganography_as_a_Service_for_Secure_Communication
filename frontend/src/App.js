@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import './App.css';
 
+// Configure API base URL
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
+
 function App() {
   const [activeTab, setActiveTab] = useState('embed');
   const [file, setFile] = useState(null);
@@ -28,7 +31,7 @@ function App() {
     formData.append('passphrase', passphrase);
 
     try {
-      const response = await axios.post('/api/stego/embed', formData, {
+      const response = await axios.post(`${API_BASE_URL}/api/stego/embed`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setResult(response.data);
@@ -55,7 +58,7 @@ function App() {
     if (messageId) formData.append('message_id', messageId);
 
     try {
-      const response = await axios.post('/api/stego/extract', formData, {
+      const response = await axios.post(`${API_BASE_URL}/api/stego/extract`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setResult(response.data);
@@ -80,7 +83,7 @@ function App() {
     formData.append('file', file);
 
     try {
-      const response = await axios.post('/api/stego/analysis', formData, {
+      const response = await axios.post(`${API_BASE_URL}/api/stego/analysis`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setResult(response.data);
@@ -223,7 +226,7 @@ function App() {
                 <p><strong>File Hash (SHA-256):</strong> {result.stego_hash}</p>
                 <div style={{marginTop: '12px'}}>
                   <img
-                    src={`/api/stego/preview/${result.message_id}`}
+                    src={`${API_BASE_URL}/api/stego/preview/${result.message_id}`}
                     alt="stego preview"
                     style={{maxWidth: '100%', border: '1px solid #ddd', borderRadius: 6}}
                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -231,7 +234,7 @@ function App() {
                 </div>
                 <div style={{marginTop: '12px'}}>
                   <a
-                    href={result.download_path}
+                    href={`${API_BASE_URL}${result.download_path}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="download-link"
