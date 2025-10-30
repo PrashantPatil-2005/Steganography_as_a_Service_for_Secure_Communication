@@ -78,7 +78,13 @@ def stego_embed():
 
     # Encrypt the message
     ciphertext, nonce, tag, salt = encrypt_message(message.encode('utf-8'), passphrase)
-    payload = b'|'.join([salt, nonce, tag, ciphertext])
+    # Robust binary format: 4x32-bit big-endian lengths + concatenated parts
+    def u32(n: int) -> bytes:
+        return int(n).to_bytes(4, 'big')
+    payload = b''.join([
+        u32(len(salt)), u32(len(nonce)), u32(len(tag)), u32(len(ciphertext)),
+        salt, nonce, tag, ciphertext
+    ])
 
     # Embed into image (baseline LSB)
     # Generate unique message ID early to include in output filename
@@ -191,7 +197,23 @@ def stego_extract():
         pass
 
     try:
-        salt, nonce, tag, ciphertext = payload.split(b'|', 3)
+        # Parse robust binary format
+        if len(payload) < 16:
+            raise ValueError('Embedded payload malformed')
+        off = 0
+        def read_u32(data: bytes, idx: int) -> int:
+            return int.from_bytes(data[idx:idx+4], 'big')
+        ls = read_u32(payload, off); off += 4
+        ln = read_u32(payload, off); off += 4
+        lt = read_u32(payload, off); off += 4
+        lc = read_u32(payload, off); off += 4
+        total_len = ls + ln + lt + lc
+        if len(payload) - off < total_len:
+            raise ValueError('Embedded payload malformed')
+        salt = payload[off:off+ls]; off += ls
+        nonce = payload[off:off+ln]; off += ln
+        tag = payload[off:off+lt]; off += lt
+        ciphertext = payload[off:off+lc]
         plaintext = decrypt_message(ciphertext, passphrase, nonce, tag, salt)
     except Exception as e:
         current_app.logger.exception('Decryption failed')
