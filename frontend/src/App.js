@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useId } from 'react';
 import axios from 'axios';
 import './App.css';
 
@@ -10,6 +10,7 @@ axios.defaults.timeout = 30000;
 // Custom File Upload Component with Drag & Drop
 const FileUpload = ({ onFileSelect, accept, required }) => {
   const [isDragOver, setIsDragOver] = useState(false);
+  const inputId = useId();
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -47,11 +48,10 @@ const FileUpload = ({ onFileSelect, accept, required }) => {
         type="file"
         accept={accept}
         onChange={handleFileChange}
-        required={required}
         style={{ display: 'none' }}
-        id="file-input"
+        id={inputId}
       />
-      <label htmlFor="file-input" className="file-upload-label">
+      <label htmlFor={inputId} className="file-upload-label">
         <div className="file-upload-content">
           <div className="file-upload-icon">📁</div>
           <div className="file-upload-text">
@@ -76,6 +76,7 @@ function App() {
 
   const handleEmbed = async (e) => {
     e.preventDefault();
+    console.log('[embed] submit clicked', { hasFile: !!file, hasMessage: !!message, hasPass: !!passphrase });
     if (!file || !message || !passphrase) {
       setError('Please fill in all fields');
       return;
@@ -120,6 +121,7 @@ function App() {
 
   const handleExtract = async (e) => {
     e.preventDefault();
+    console.log('[extract] submit clicked', { hasFile: !!file, hasPass: !!passphrase, messageId });
     if (!file || !passphrase) {
       setError('Please select a file and enter passphrase');
       return;
@@ -145,6 +147,7 @@ function App() {
 
   const handleAnalysis = async (e) => {
     e.preventDefault();
+    console.log('[analysis] submit clicked', { hasFile: !!file });
     if (!file) {
       setError('Please select a file for analysis');
       return;
@@ -207,6 +210,11 @@ function App() {
                 accept="image/*"
                 required={true}
               />
+            {file && (
+              <div style={{ marginTop: '8px', fontSize: '12px', color: '#334155' }}>
+                Selected: <code>{file.name}</code>
+              </div>
+            )}
             </div>
             <div className="form-group">
               <label>💬 Secret Message</label>
@@ -243,6 +251,11 @@ function App() {
                 accept="image/*"
                 required={true}
               />
+            {file && (
+              <div style={{ marginTop: '8px', fontSize: '12px', color: '#334155' }}>
+                Selected: <code>{file.name}</code>
+              </div>
+            )}
             </div>
             <div className="form-group">
               <label>🔑 Decryption Key</label>
@@ -279,6 +292,11 @@ function App() {
                 accept="image/*"
                 required={true}
               />
+            {file && (
+              <div style={{ marginTop: '8px', fontSize: '12px', color: '#334155' }}>
+                Selected: <code>{file.name}</code>
+              </div>
+            )}
             </div>
             <button type="submit" disabled={loading}>
               {loading ? '🔄 Analyzing...' : '🔬 Detect Steganography'}
