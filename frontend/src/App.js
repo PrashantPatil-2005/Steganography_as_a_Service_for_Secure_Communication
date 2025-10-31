@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import './App.css';
 
+// Ensure API works even if dev proxy isn't active
+axios.defaults.baseURL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : '';
+axios.defaults.withCredentials = false;
+axios.defaults.timeout = 30000;
+
 // Custom File Upload Component with Drag & Drop
 const FileUpload = ({ onFileSelect, accept, required }) => {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -80,17 +85,34 @@ function App() {
     setError(null);
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', file, file.name);
     formData.append('message', message);
     formData.append('passphrase', passphrase);
 
     try {
-      const response = await axios.post('/api/stego/embed', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const response = await axios.post('/api/stego/embed', formData);
       setResult(response.data);
+      // Auto download the generated image
+      const downloadPath = response.data?.download_path;
+      const suggestedName = response.data?.stego_filename || 'stego.png';
+      if (downloadPath) {
+        try {
+          const fileResp = await axios.get(downloadPath, { responseType: 'blob' });
+          const blobUrl = URL.createObjectURL(new Blob([fileResp.data]));
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = suggestedName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(blobUrl);
+        } catch (_) {
+          // Fallback: open the download path
+          window.location.href = downloadPath;
+        }
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred');
+      setError(err.response?.data?.message || err.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -107,17 +129,15 @@ function App() {
     setError(null);
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', file, file.name);
     formData.append('passphrase', passphrase);
     if (messageId) formData.append('message_id', messageId);
 
     try {
-      const response = await axios.post('/api/stego/extract', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const response = await axios.post('/api/stego/extract', formData);
       setResult(response.data);
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred');
+      setError(err.response?.data?.message || err.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -134,15 +154,13 @@ function App() {
     setError(null);
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', file, file.name);
 
     try {
-      const response = await axios.post('/api/stego/analysis', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const response = await axios.post('/api/stego/analysis', formData);
       setResult(response.data);
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred');
+      setError(err.response?.data?.message || err.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
