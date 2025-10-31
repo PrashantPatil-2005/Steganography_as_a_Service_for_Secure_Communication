@@ -15,7 +15,7 @@ const FileUpload = ({ onFileSelect, accept, required }) => {
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragOver(true);
-  };
+  }; 
 
   const handleDragLeave = (e) => {
     e.preventDefault();
@@ -172,7 +172,7 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>🔐 Secure Steganography</h1>
+        <h1> Secure Steganography</h1>
         <p>Hide messages in plain sight with military-grade encryption</p>
       </header>
 
@@ -182,19 +182,19 @@ function App() {
             className={activeTab === 'embed' ? 'active' : ''}
             onClick={() => setActiveTab('embed')}
           >
-            <span>🔒 Hide Message</span>
+            <span> Hide Message</span>
           </button>
           <button
             className={activeTab === 'extract' ? 'active' : ''}
             onClick={() => setActiveTab('extract')}
           >
-            <span>🔓 Reveal Message</span>
+            <span> Reveal Message</span>
           </button>
           <button
             className={activeTab === 'analysis' ? 'active' : ''}
             onClick={() => setActiveTab('analysis')}
           >
-            <span>🔍 Analyze Image</span>
+            <span> Analyze Image</span>
           </button>
         </div>
 
@@ -202,9 +202,9 @@ function App() {
 
         {activeTab === 'embed' && (
           <form onSubmit={handleEmbed} className="form">
-            <h2>🔒 Encrypt & Hide Message</h2>
+            <h2> Encrypt & Hide Message</h2>
             <div className="form-group">
-              <label>📷 Cover Image</label>
+              <label> Cover Image</label>
               <FileUpload 
                 onFileSelect={setFile}
                 accept="image/*"
@@ -217,7 +217,7 @@ function App() {
             )}
             </div>
             <div className="form-group">
-              <label>💬 Secret Message</label>
+              <label>Secret Message</label>
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -226,7 +226,7 @@ function App() {
               />
             </div>
             <div className="form-group">
-              <label>🔑 Encryption Key</label>
+              <label>Encryption Key</label>
               <input
                 type="password"
                 value={passphrase}
@@ -236,14 +236,14 @@ function App() {
               />
             </div>
             <button type="submit" disabled={loading}>
-              {loading ? '🔄 Encrypting & Hiding...' : '🚀 Hide Message'}
+              {loading ? ' Encrypting & Hiding...' : ' Hide Message'}
             </button>
           </form>
         )}
 
         {activeTab === 'extract' && (
           <form onSubmit={handleExtract} className="form">
-            <h2>🔓 Decrypt & Reveal Message</h2>
+            <h2> Decrypt & Reveal Message</h2>
             <div className="form-group">
               <label>📷 Stego Image</label>
               <FileUpload 
@@ -258,7 +258,7 @@ function App() {
             )}
             </div>
             <div className="form-group">
-              <label>🔑 Decryption Key</label>
+              <label> Decryption Key</label>
               <input
                 type="password"
                 value={passphrase}
@@ -268,7 +268,7 @@ function App() {
               />
             </div>
             <div className="form-group">
-              <label>🆔 Message ID (Optional)</label>
+              <label>Message ID (Optional)</label>
               <input
                 type="text"
                 value={messageId}
@@ -277,16 +277,16 @@ function App() {
               />
             </div>
             <button type="submit" disabled={loading}>
-              {loading ? '🔄 Decrypting...' : '🔍 Extract Message'}
+              {loading ? ' Decrypting...' : ' Extract Message'}
             </button>
           </form>
         )}
 
         {activeTab === 'analysis' && (
           <form onSubmit={handleAnalysis} className="form">
-            <h2>🔍 Steganalysis Detection</h2>
+            <h2> Steganalysis Detection</h2>
             <div className="form-group">
-              <label>📷 Image to Analyze</label>
+              <label>Image to Analyze</label>
               <FileUpload 
                 onFileSelect={setFile}
                 accept="image/*"
@@ -299,7 +299,7 @@ function App() {
             )}
             </div>
             <button type="submit" disabled={loading}>
-              {loading ? '🔄 Analyzing...' : '🔬 Detect Steganography'}
+              {loading ? 'Analyzing...' : 'Detect Steganography'}
             </button>
           </form>
         )}
@@ -310,8 +310,8 @@ function App() {
               <>
                 <h3>✅ Message Successfully Hidden!</h3>
                 <div style={{marginBottom: '20px'}}>
-                  <p><strong>🆔 Message ID:</strong> <code>{result.message_id}</code></p>
-                  <p><strong>🔐 File Hash:</strong> <code>{result.stego_hash}</code></p>
+                  <p><strong> Message ID:</strong> <code>{result.message_id}</code></p>
+                  <p><strong> File Hash:</strong> <code>{result.stego_hash}</code></p>
                 </div>
                 <div style={{marginBottom: '20px'}}>
                   <img
@@ -336,9 +336,9 @@ function App() {
 
             {activeTab === 'extract' && result.data && (
               <>
-                <h3>🔓 Message Successfully Extracted!</h3>
+                <h3> Message Successfully Extracted!</h3>
                 <div className="form-group">
-                  <label>💬 Decrypted Message:</label>
+                  <label> Decrypted Message:</label>
                   <textarea 
                     readOnly 
                     value={result.data} 
@@ -360,13 +360,13 @@ function App() {
 
             {activeTab === 'analysis' && (result.chi_square_score !== undefined) && (
               <>
-                <h3>🔍 Steganalysis Complete</h3>
+                <h3> Steganalysis Complete</h3>
                 <div style={{background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '2px solid #e2e8f0'}}>
-                  <p><strong>📊 Chi-square Score:</strong> <code>{result.chi_square_score}</code></p>
+                  <p><strong> Chi-square Score:</strong> <code>{result.chi_square_score}</code></p>
                   <p style={{marginTop: '12px', fontSize: '14px', color: '#64748b'}}>
                     {result.chi_square_score > 0.05 ? 
-                      '✅ No significant steganographic content detected' : 
-                      '⚠️ Potential steganographic content detected'
+                      ' No significant steganographic content detected' : 
+                      ' Potential steganographic content detected'
                     }
                   </p>
                 </div>
