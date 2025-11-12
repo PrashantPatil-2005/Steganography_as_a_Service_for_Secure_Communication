@@ -1,0 +1,11 @@
+# Python dependencies for Vercel serverless function
+# This should match backend/requirements.txt
+Flask
+Flask-JWT-Extended
+Flask-Cors
+python-dotenv
+Werkzeug
+Pillow
+stegano
+pycryptodome
+

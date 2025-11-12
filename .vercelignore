@@ -1,0 +1,49 @@
+# Vercel ignore file
+# Exclude unnecessary files from deployment
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Database files
+*.db
+*.sqlite3
+
+# Development files
+*.log
+.env.local
+.env.development
+
+# Test files
+test/
+tests/
+*.test.py
+*_test.py
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+
+# Temporary uploads (will use /tmp on Vercel)
+uploads/
+stego_tmp/
+backend/uploads/
+backend/stego_tmp/
+
+# Build artifacts (handled by Vercel)
+frontend/node_modules/
+backend/__pycache__/
+

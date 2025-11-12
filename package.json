@@ -1,0 +1,12 @@
+{
+  "name": "steganography-as-a-service",
+  "version": "1.0.0",
+  "description": "Steganography as a Service for Secure Communication",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}
+
