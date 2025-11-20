@@ -5,7 +5,8 @@ import './App.css';
 // Ensure API works even if dev proxy isn't active
 axios.defaults.baseURL = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : '';
 axios.defaults.withCredentials = false;
-axios.defaults.timeout = 30000;
+// Increased timeout for encryption/steganography operations which can take longer
+axios.defaults.timeout = 120000; // 2 minutes for complex operations
 
 // Custom File Upload Component with Drag & Drop
 const FileUpload = ({ onFileSelect, accept, required }) => {

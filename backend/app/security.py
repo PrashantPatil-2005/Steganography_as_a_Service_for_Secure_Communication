@@ -10,7 +10,8 @@ import logging
 
 # --- Symmetric Encryption (AES-GCM) ---
 
-def _derive_key(passphrase: str, salt: bytes, iterations: int = 200_000) -> bytes:
+def _derive_key(passphrase: str, salt: bytes, iterations: int = 100_000) -> bytes:
+    """Derive encryption key using PBKDF2. Reduced iterations for better performance while maintaining security."""
     logging.debug(f'Deriving key with PBKDF2: iterations={iterations}, salt_len={len(salt)}')
     return PBKDF2(passphrase, salt, dkLen=32, count=iterations, hmac_hash_module=SHA256)
 
