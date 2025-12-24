@@ -1,5 +1,8 @@
-# Vercel ignore file
-# Exclude unnecessary files from deployment
+# Vercel ignore file - Aggressive exclusions for size limit
+# The API is now self-contained, backend folder is NOT needed
+
+# ===== EXCLUDE ENTIRE BACKEND (critical for size) =====
+backend/
 
 # Python cache
 __pycache__/
@@ -13,7 +16,6 @@ __pycache__/
 venv/
 env/
 frontend/.venv/
-backend/.venv/
 
 # Database files
 *.db
@@ -42,21 +44,19 @@ docs/
 *.swp
 .codesight/
 
-# Temporary uploads (will use /tmp on Vercel)
+# Temporary uploads
 uploads/
 stego_tmp/
-backend/uploads/
-backend/stego_tmp/
 
 # Git
 .git/
 .gitignore
 
-# Build artifacts and node_modules (handled by Vercel)
-frontend/node_modules/
+# Node modules (Vercel handles these)
 node_modules/
-backend/__pycache__/
+frontend/node_modules/
 
-# Root level unnecessary files
+# Root level files not needed
 package.json
 package-lock.json
+VERCEL_DEPLOYMENT.md

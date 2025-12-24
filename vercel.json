@@ -32,8 +32,12 @@
     }
   ],
   "env": {
-    "PYTHON_VERSION": "3.11",
-    "VERCEL": "1"
+    "PYTHON_VERSION": "3.11"
+  },
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 30,
+      "memory": 512
+    }
   }
 }
-
