@@ -173,7 +173,7 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h1> Secure Steganography</h1>
-        <p>Hide messages in plain sight with military-grade encryption</p>
+        <p>Hide messages in plain sight encryption</p>
       </header>
 
       <div className="container">
@@ -316,7 +316,7 @@ function App() {
                 <div style={{marginBottom: '20px'}}>
                   <img
                     src={`/api/stego/preview/${result.message_id}`}
-                    alt="Encrypted image preview"
+                    alt="Encrypted preview"
                     style={{maxWidth: '100%', border: '2px solid #e0f2fe', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}}
                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   />
