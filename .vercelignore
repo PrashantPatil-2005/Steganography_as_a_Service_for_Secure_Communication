@@ -6,11 +6,14 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache/
 
 # Virtual environments
 .venv/
 venv/
 env/
+frontend/.venv/
+backend/.venv/
 
 # Database files
 *.db
@@ -20,6 +23,7 @@ env/
 *.log
 .env.local
 .env.development
+.env
 
 # Test files
 test/
@@ -36,6 +40,7 @@ docs/
 .vscode/
 .idea/
 *.swp
+.codesight/
 
 # Temporary uploads (will use /tmp on Vercel)
 uploads/
@@ -43,7 +48,15 @@ stego_tmp/
 backend/uploads/
 backend/stego_tmp/
 
-# Build artifacts (handled by Vercel)
+# Git
+.git/
+.gitignore
+
+# Build artifacts and node_modules (handled by Vercel)
 frontend/node_modules/
+node_modules/
 backend/__pycache__/
 
+# Root level unnecessary files
+package.json
+package-lock.json

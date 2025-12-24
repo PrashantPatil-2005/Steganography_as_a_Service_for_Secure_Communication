@@ -5,5 +5,4 @@ Flask-Cors
 python-dotenv
 Werkzeug
 Pillow
-stegano
 pycryptodome

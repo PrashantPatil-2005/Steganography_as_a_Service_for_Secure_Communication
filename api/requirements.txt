@@ -1,11 +1,10 @@
 # Python dependencies for Vercel serverless function
-# This should match backend/requirements.txt
+# Minimal deps only - custom steganography uses Pillow only
 Flask
 Flask-JWT-Extended
 Flask-Cors
 python-dotenv
 Werkzeug
 Pillow
-stegano
 pycryptodome
 
