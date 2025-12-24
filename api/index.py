@@ -1,27 +1,27 @@
 """
-Vercel serverless function - Lightweight Flask API for Steganography
-Uses pure Python crypto and Pillow-SIMD/minimal deps to stay under 250MB
+Vercel serverless function - Ultra-lightweight Flask API for Steganography
+Uses pure Python libraries only (no C extensions) to stay under 250MB
 """
 import os
-import sys
 import uuid
 import hmac
 import hashlib
 import secrets
 import struct
+import zlib
 from io import BytesIO
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
-# Use cryptography (smaller) instead of pycryptodome
+# Pure Python PNG library (no C extensions, tiny size)
+import png
+
+# Use cryptography for AES-GCM
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
-
-# Pillow for image processing (required for steganography)
-from PIL import Image
 
 # ==================== CONFIG ====================
 class Config:
@@ -29,9 +29,9 @@ class Config:
     UPLOAD_FOLDER = '/tmp/uploads'
     STEGO_TEMP_FOLDER = '/tmp/stego_tmp'
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp'}
+    ALLOWED_EXTENSIONS = {'png'}  # Only PNG for pure Python implementation
 
-# ==================== SECURITY (using cryptography library) ====================
+# ==================== SECURITY ====================
 def _derive_key(passphrase: str, salt: bytes, iterations: int = 200_000) -> bytes:
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
@@ -43,12 +43,11 @@ def _derive_key(passphrase: str, salt: bytes, iterations: int = 200_000) -> byte
     return kdf.derive(passphrase.encode('utf-8'))
 
 def encrypt_message(plaintext: bytes, passphrase: str):
-    """Encrypt using AES-GCM. Returns (ciphertext_with_tag, nonce, salt)."""
     salt = secrets.token_bytes(16)
-    nonce = secrets.token_bytes(12)  # 96-bit nonce for AES-GCM
+    nonce = secrets.token_bytes(12)
     key = _derive_key(passphrase, salt)
     aesgcm = AESGCM(key)
-    ciphertext = aesgcm.encrypt(nonce, plaintext, None)  # includes auth tag
+    ciphertext = aesgcm.encrypt(nonce, plaintext, None)
     return ciphertext, nonce, salt
 
 def decrypt_message(ciphertext: bytes, passphrase: str, nonce: bytes, salt: bytes) -> bytes:
@@ -59,7 +58,7 @@ def decrypt_message(ciphertext: bytes, passphrase: str, nonce: bytes, salt: byte
 def sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
-# ==================== STEGANOGRAPHY (pure Python) ====================
+# ==================== STEGANOGRAPHY (Pure Python with pypng) ====================
 def _bytes_to_bits(data: bytes):
     for byte in data:
         for i in range(7, -1, -1):
@@ -82,80 +81,95 @@ def _bits_to_bytes(bits):
     return bytes(out)
 
 def embed_message_in_image(input_path: str, payload: bytes, output_path: str):
-    with Image.open(input_path) as img:
-        if img.mode not in ('RGB', 'RGBA'):
-            img = img.convert('RGB')
-        has_alpha = img.mode == 'RGBA'
-        pixels = list(img.getdata())
-        width, height = img.size
-
-    total_channels = len(pixels) * 3
+    """Embed payload into PNG using LSB steganography with pypng."""
+    # Read PNG
+    reader = png.Reader(filename=input_path)
+    w, h, rows, metadata = reader.read()
+    
+    # Convert to list of pixel rows
+    pixels = []
+    planes = metadata.get('planes', 3)
+    has_alpha = metadata.get('alpha', False)
+    
+    for row in rows:
+        row_list = list(row)
+        pixels.append(row_list)
+    
+    # Calculate capacity
+    total_values = w * h * 3  # RGB channels only
     required_bits = (4 + len(payload)) * 8
-    if required_bits > total_channels:
+    if required_bits > total_values:
         raise ValueError('Cover image too small for payload')
-
+    
+    # Create bit stream with length prefix
     length_prefix = len(payload).to_bytes(4, 'big')
     bit_stream = list(_bytes_to_bits(length_prefix + payload))
-    bit_iter = iter(bit_stream)
-
-    new_pixels = []
-    for p in pixels:
-        r, g, b = p[:3]
-        try:
-            r = (r & 0xFE) | next(bit_iter)
-        except StopIteration:
-            new_pixels.append(p)
-            continue
-        try:
-            g = (g & 0xFE) | next(bit_iter)
-        except StopIteration:
-            new_pixels.append((r, g, b, p[3]) if has_alpha else (r, g, b))
-            continue
-        try:
-            b = (b & 0xFE) | next(bit_iter)
-        except StopIteration:
-            new_pixels.append((r, g, b, p[3]) if has_alpha else (r, g, b))
-            continue
-        new_pixels.append((r, g, b, p[3]) if has_alpha else (r, g, b))
-
-    mode = 'RGBA' if has_alpha else 'RGB'
-    out_img = Image.new(mode, (width, height))
-    out_img.putdata(new_pixels)
+    bit_idx = 0
+    
+    # Embed into LSB of RGB values
+    for row in pixels:
+        for i in range(0, len(row), planes):
+            for c in range(min(3, planes)):  # Only R, G, B
+                if bit_idx < len(bit_stream):
+                    row[i + c] = (row[i + c] & 0xFE) | bit_stream[bit_idx]
+                    bit_idx += 1
+    
+    # Write output
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    out_img.save(output_path, format='PNG')
+    
+    writer = png.Writer(
+        width=w,
+        height=h,
+        greyscale=False,
+        alpha=has_alpha,
+        bitdepth=metadata.get('bitdepth', 8)
+    )
+    
+    with open(output_path, 'wb') as f:
+        writer.write(f, pixels)
 
 def extract_message_from_image(input_path: str) -> bytes:
-    with Image.open(input_path) as img:
-        if img.mode not in ('RGB', 'RGBA'):
-            img = img.convert('RGB')
-        pixels = list(img.getdata())
-
+    """Extract hidden payload from PNG using LSB."""
+    reader = png.Reader(filename=input_path)
+    w, h, rows, metadata = reader.read()
+    
+    planes = metadata.get('planes', 3)
+    
+    # Extract LSBs
     bits = []
-    for p in pixels:
-        r, g, b = p[:3]
-        bits.extend([r & 1, g & 1, b & 1])
-
+    for row in rows:
+        row_list = list(row)
+        for i in range(0, len(row_list), planes):
+            for c in range(min(3, planes)):
+                bits.append(row_list[i + c] & 1)
+    
+    # First 32 bits = length
     length_bytes = _bits_to_bytes(bits[:32])
     length = int.from_bytes(length_bytes, 'big')
     total_bits_needed = 32 + length * 8
+    
     if total_bits_needed > len(bits):
         raise ValueError('Not enough data for payload length')
+    
     return _bits_to_bytes(bits[32:32 + length * 8])
 
 def chi_square_lsb(image_path: str) -> float:
-    with Image.open(image_path) as img:
-        if img.mode not in ('RGB', 'RGBA'):
-            img = img.convert('RGB')
-        pixels = list(img.getdata())
-
+    """Chi-square analysis for LSB detection."""
+    reader = png.Reader(filename=image_path)
+    w, h, rows, metadata = reader.read()
+    
+    planes = metadata.get('planes', 3)
     zeros = ones = 0
-    for p in pixels:
-        for c in p[:3]:
-            if c & 1:
-                ones += 1
-            else:
-                zeros += 1
-
+    
+    for row in rows:
+        row_list = list(row)
+        for i in range(0, len(row_list), planes):
+            for c in range(min(3, planes)):
+                if row_list[i + c] & 1:
+                    ones += 1
+                else:
+                    zeros += 1
+    
     total = zeros + ones
     if total == 0:
         return 0.0
@@ -167,7 +181,6 @@ app = Flask(__name__)
 app.config.from_object(Config)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-# Ensure folders exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['STEGO_TEMP_FOLDER'], exist_ok=True)
 
@@ -180,6 +193,7 @@ def api_index():
     return jsonify({
         'name': 'Steganography-as-a-Service API',
         'version': 1,
+        'note': 'Only PNG images supported',
         'endpoints': [
             'POST /api/stego/embed',
             'GET  /api/stego/download/<message_id>',
@@ -205,25 +219,29 @@ def stego_embed():
     if not file or file.filename == '':
         return jsonify({'message': 'No selected file'}), 400
     if not allowed_file(file.filename):
-        return jsonify({'message': 'File type not allowed'}), 400
+        return jsonify({'message': 'Only PNG files are supported'}), 400
     if not message:
         return jsonify({'message': 'Missing message'}), 400
     if not passphrase:
         return jsonify({'message': 'Missing passphrase'}), 400
 
     filename = secure_filename(file.filename)
+    # Ensure .png extension
+    if not filename.lower().endswith('.png'):
+        filename += '.png'
+    
     upload_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(upload_path)
 
-    # Encrypt (simplified format: salt + nonce + ciphertext)
+    # Encrypt
     ciphertext, nonce, salt = encrypt_message(message.encode('utf-8'), passphrase)
-    # Format: 3x32-bit lengths + salt + nonce + ciphertext
     def u32(n): return int(n).to_bytes(4, 'big')
     payload = b''.join([u32(len(salt)), u32(len(nonce)), u32(len(ciphertext)), salt, nonce, ciphertext])
 
     # Embed
     message_id = str(uuid.uuid4())
     stego_output = os.path.join(app.config['STEGO_TEMP_FOLDER'], f"stego_{message_id}_{filename}")
+    
     try:
         embed_message_in_image(upload_path, payload, stego_output)
     except Exception as e:
@@ -231,7 +249,6 @@ def stego_embed():
         except: pass
         return jsonify({'message': f'Embedding failed: {str(e)}'}), 500
 
-    # Hash
     with open(stego_output, 'rb') as f:
         stego_bytes = f.read()
     stego_hash_hex = sha256_hex(stego_bytes)
