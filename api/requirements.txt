@@ -1,10 +1,7 @@
-# Python dependencies for Vercel serverless function
-# Minimal deps only - custom steganography uses Pillow only
-Flask
-Flask-JWT-Extended
-Flask-Cors
-python-dotenv
-Werkzeug
-Pillow
-pycryptodome
-
+# Minimal Python dependencies for Vercel serverless
+# Optimized for smallest possible bundle size
+Flask==3.0.0
+flask-cors==4.0.0
+Werkzeug==3.0.1
+cryptography==41.0.7
+Pillow==10.1.0

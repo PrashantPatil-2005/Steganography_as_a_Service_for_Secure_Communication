@@ -1,66 +1,65 @@
 """
-Vercel serverless function - Self-contained Flask API for Steganography
-This is a minimal, standalone version that doesn't import from backend/
-to keep the serverless function size under 250MB limit.
+Vercel serverless function - Lightweight Flask API for Steganography
+Uses pure Python crypto and Pillow-SIMD/minimal deps to stay under 250MB
 """
 import os
 import sys
 import uuid
-import logging
+import hmac
+import hashlib
+import secrets
+import struct
 from io import BytesIO
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, jwt_required
 from werkzeug.utils import secure_filename
-from PIL import Image
-from Crypto.Cipher import AES
-from Crypto.Protocol.KDF import PBKDF2
-from Crypto.Random import get_random_bytes
-from Crypto.Hash import SHA256
-from Crypto.PublicKey import ECC
-from Crypto.Signature import eddsa
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+# Use cryptography (smaller) instead of pycryptodome
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
+
+# Pillow for image processing (required for steganography)
+from PIL import Image
 
 # ==================== CONFIG ====================
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
-    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', SECRET_KEY)
     UPLOAD_FOLDER = '/tmp/uploads'
     STEGO_TEMP_FOLDER = '/tmp/stego_tmp'
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp'}
 
-# ==================== SECURITY ====================
+# ==================== SECURITY (using cryptography library) ====================
 def _derive_key(passphrase: str, salt: bytes, iterations: int = 200_000) -> bytes:
-    return PBKDF2(passphrase, salt, dkLen=32, count=iterations, hmac_hash_module=SHA256)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=iterations,
+        backend=default_backend()
+    )
+    return kdf.derive(passphrase.encode('utf-8'))
 
 def encrypt_message(plaintext: bytes, passphrase: str):
-    salt = get_random_bytes(16)
+    """Encrypt using AES-GCM. Returns (ciphertext_with_tag, nonce, salt)."""
+    salt = secrets.token_bytes(16)
+    nonce = secrets.token_bytes(12)  # 96-bit nonce for AES-GCM
     key = _derive_key(passphrase, salt)
-    cipher = AES.new(key, AES.MODE_GCM)
-    ciphertext, tag = cipher.encrypt_and_digest(plaintext)
-    return ciphertext, cipher.nonce, tag, salt
+    aesgcm = AESGCM(key)
+    ciphertext = aesgcm.encrypt(nonce, plaintext, None)  # includes auth tag
+    return ciphertext, nonce, salt
 
-def decrypt_message(ciphertext: bytes, passphrase: str, nonce: bytes, tag: bytes, salt: bytes) -> bytes:
+def decrypt_message(ciphertext: bytes, passphrase: str, nonce: bytes, salt: bytes) -> bytes:
     key = _derive_key(passphrase, salt)
-    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
-    return cipher.decrypt_and_verify(ciphertext, tag)
+    aesgcm = AESGCM(key)
+    return aesgcm.decrypt(nonce, ciphertext, None)
 
 def sha256_hex(data: bytes) -> str:
-    return SHA256.new(data).hexdigest()
+    return hashlib.sha256(data).hexdigest()
 
-def generate_signing_keypair():
-    priv = ECC.generate(curve='Ed25519')
-    return priv, priv.public_key()
-
-def sign_bytes(data: bytes, private_key) -> bytes:
-    signer = eddsa.new(private_key, 'rfc8032')
-    return signer.sign(data)
-
-# ==================== STEGANOGRAPHY ====================
+# ==================== STEGANOGRAPHY (pure Python) ====================
 def _bytes_to_bits(data: bytes):
     for byte in data:
         for i in range(7, -1, -1):
@@ -167,7 +166,6 @@ def chi_square_lsb(image_path: str) -> float:
 app = Flask(__name__)
 app.config.from_object(Config)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
-JWTManager(app)
 
 # Ensure folders exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -196,7 +194,6 @@ def api_health():
     return jsonify({'status': 'ok'}), 200
 
 @app.route('/api/stego/embed', methods=['POST'])
-@jwt_required(optional=True)
 def stego_embed():
     if 'file' not in request.files:
         return jsonify({'message': 'No file uploaded'}), 400
@@ -204,7 +201,6 @@ def stego_embed():
     file = request.files['file']
     message = request.form.get('message')
     passphrase = request.form.get('passphrase')
-    want_sign = request.form.get('sign', 'false').lower() == 'true'
 
     if not file or file.filename == '':
         return jsonify({'message': 'No selected file'}), 400
@@ -219,10 +215,11 @@ def stego_embed():
     upload_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(upload_path)
 
-    # Encrypt
-    ciphertext, nonce, tag, salt = encrypt_message(message.encode('utf-8'), passphrase)
+    # Encrypt (simplified format: salt + nonce + ciphertext)
+    ciphertext, nonce, salt = encrypt_message(message.encode('utf-8'), passphrase)
+    # Format: 3x32-bit lengths + salt + nonce + ciphertext
     def u32(n): return int(n).to_bytes(4, 'big')
-    payload = b''.join([u32(len(salt)), u32(len(nonce)), u32(len(tag)), u32(len(ciphertext)), salt, nonce, tag, ciphertext])
+    payload = b''.join([u32(len(salt)), u32(len(nonce)), u32(len(ciphertext)), salt, nonce, ciphertext])
 
     # Embed
     message_id = str(uuid.uuid4())
@@ -234,16 +231,10 @@ def stego_embed():
         except: pass
         return jsonify({'message': f'Embedding failed: {str(e)}'}), 500
 
-    # Hash and sign
+    # Hash
     with open(stego_output, 'rb') as f:
         stego_bytes = f.read()
     stego_hash_hex = sha256_hex(stego_bytes)
-    
-    signature = public_key = None
-    if want_sign:
-        privkey, pubkey = generate_signing_keypair()
-        signature = sign_bytes(bytes.fromhex(stego_hash_hex), privkey)
-        public_key = pubkey.export_key(format='DER')
 
     try: os.remove(upload_path)
     except: pass
@@ -252,7 +243,6 @@ def stego_embed():
         'message': 'Embedded successfully',
         'message_id': message_id,
         'stego_hash': stego_hash_hex,
-        'public_key_der_hex': public_key.hex() if public_key else None,
         'stego_filename': os.path.basename(stego_output),
         'download_path': f"/api/stego/download/{message_id}"
     }), 201
@@ -308,21 +298,19 @@ def stego_extract():
         return jsonify({'message': f'Extraction failed: {str(e)}'}), 500
 
     try:
-        if len(payload) < 16:
+        if len(payload) < 12:
             raise ValueError('Embedded payload malformed')
         off = 0
         def read_u32(data, idx): return int.from_bytes(data[idx:idx+4], 'big')
         ls = read_u32(payload, off); off += 4
         ln = read_u32(payload, off); off += 4
-        lt = read_u32(payload, off); off += 4
         lc = read_u32(payload, off); off += 4
-        if len(payload) - off < ls + ln + lt + lc:
+        if len(payload) - off < ls + ln + lc:
             raise ValueError('Embedded payload malformed')
         salt = payload[off:off+ls]; off += ls
         nonce = payload[off:off+ln]; off += ln
-        tag = payload[off:off+lt]; off += lt
         ciphertext = payload[off:off+lc]
-        plaintext = decrypt_message(ciphertext, passphrase, nonce, tag, salt)
+        plaintext = decrypt_message(ciphertext, passphrase, nonce, salt)
     except Exception as e:
         try: os.remove(temp_path)
         except: pass
@@ -354,7 +342,6 @@ def stego_analysis():
 
     return jsonify({'chi_square_score': score}), 200
 
-# Fallback for root
 @app.route('/', methods=['GET'])
 def root():
     return jsonify({'message': 'Steganography API', 'api_base': '/api'}), 200
